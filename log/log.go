@@ -47,7 +47,7 @@ func Init(programName, logLevelStr string, filenames ...string) *Zlog {
 	logLevel := zap.NewAtomicLevel()
 	logLevel.UnmarshalText([]byte(logLevelStr))
 
-	logPath := common.JoinPath(common.GetMainPath(), "log")
+	logPath := common.JoinPath(common.GetMainPath(), "logs")
 	err := os.MkdirAll(logPath, 0777)
 	if err != nil {
 		log.Fatalf("create log path failed, error = %s!", err)
