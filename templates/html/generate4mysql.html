@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8"/>
+    <title>代码生成</title>
+    <meta name="renderer" content="webkit"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.0/css/bootstrap-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/select2/4.0.6-rc.1/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/select2-bootstrap-css/1.4.6/select2-bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        .content {
+            position: absolute;
+            width: 800px;
+            height: 750px;
+            top: 50%;
+            left: 50%;
+            margin: -375px 0 0 -400px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+
+        .form {
+            margin: 0px auto;
+            width: 800px;
+        }
+
+        .select2-container .select2-selection--single {
+            height: 34px;
+        }
+
+        .page-header {
+            text-align: center;
+            color: #1d80ef;
+            border-bottom: 1px solid #1d80ef;
+            margin: 0 0 20px;
+        }
+
+        .form-group > label {
+            color: #5F5F5F;
+        }
+
+        .button-group {
+            text-align: center;
+        }
+
+        .button-group > button {
+            width: 150px;
+            color: #fff;
+            background-color: #1d80ef;
+            display: inline-block;
+            padding: 6px 12px;
+            margin-bottom: 0;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.42857143;
+            text-align: center;
+            border: 0;
+            -webkit-border-radius: 4px;
+            -moz-border-radius: 4px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .col-sm-6 {
+            min-height: 100px;
+        }
+        .form-tip {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div class="content">
+    <form role="form" class="form">
+        <div class="page-header">
+            <h1>
+                代码生成
+            </h1>
+        </div>
+        {{if .msg}} <span style="color: red;">！{{.msg}}</span> {{end}}
+        <input class="form-control" type="hidden" id="dbAddr" value="{{.dbAddr}}"></input>
+        <input class="form-control" type="hidden" id="dbUser" value="{{.dbUser}}"></input>
+        <input class="form-control" type="hidden" id="dbPassword" value="{{.dbPassword}}"></input>
+        <div class="form-group">
+            <div class="form-group col-sm-6">
+                <label class="control-label">项目名</label>
+                <div class="">
+                    <input class="form-control" id="projectName" type="text"></input>
+                    <span class="form-tip">支持多层级（用/分隔），例：os/generator，不填则以数据库名作为项目名</span>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="form-group col-sm-6">
+                <label class=" control-label">数据库</label>
+                <div class="-10">
+                    <select class="form-control" id="databases" onchange="getTables()">
+                    </select>
+                </div>
+            </div>
+            <div class="form-group col-sm-6">
+                <label class=" control-label">数据库表</label>
+                <div class="">
+                    <select class="form-control input-sm" id="tables" multiple="multiple">
+                    </select>
+                    <span class="form-tip">不选则默认所有表</span>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="form-group col-sm-6">
+                <label class=" control-label">JSON字段格式</label>
+                <div class="-10">
+                    <select class="form-control" id="jsonFormat">
+                        <option value="1">下划线格式</option>
+                        <option value="2" selected>驼峰格式</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-group col-sm-12">
+            <div class="button-group">
+                <button type="button" id="generatorBtn" onclick="generate()">生成代码</button>
+                <button type="button" onclick="back()">返回</button>
+            </div>
+        </div>
+    </form>
+</div>
+<div id="particles-js"></div>
+<script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.js"></script>
+<script src="https://cdn.bootcss.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+<script src="https://cdn.bootcss.com/select2/4.0.6-rc.1/js/select2.min.js"></script>
+<script src="https://cdn.bootcss.com/particles.js/2.0.0/particles.min.js"></script>
+<script>
+    var cm = {}, tables = [];
+    cm.get = function (url, data, success) {
+        cm.ajax(url, "get", data, success);
+    };
+    cm.post = function (url, data, success) {
+        cm.ajax(url, "post", data, success);
+    };
+    cm.jpost = function (url, data, success) {
+        cm.ajax(url, "post", JSON.stringify(data), success, true, {'Content-type': 'application/json;charset=UTF-8'});
+    };
+    cm.ajax = function (url, type, data, success, show, headers) {
+        $.ajax({
+            url: url,
+            data: data,
+            type: type,
+            dataType: "json",
+            headers: headers,
+            beforeSend: function () {
+            },
+            success: function (data) {
+                success(data);
+            },
+            error: function (error) {
+            }
+        });
+    };
+    var dbAddr, dbUser, dbPassword;
+    var getTables = function () {
+        $("#tables > option").remove();
+        $("#doNameUpperCamel").val("");
+        var database = $("#databases option:selected").text();
+        if (tables[database]) {
+            $('#tables').select2({
+                data: tables[database]
+            });
+        } else {
+            cm.get("/table", {
+                "dbAddr": dbAddr,
+                "dbUser": dbUser,
+                "dbPassword": dbPassword,
+                "dbName": database
+            }, function (data) {
+                data = data.data
+                for (var i = 0; i < data.length; i++) {
+                    data[i].id = data[i].table_comment;
+                    data[i].text = data[i].table_name;
+                }
+                $('#tables').select2({
+                    data: data
+                });
+                tables[database] = data;
+            });
+        }
+    };
+    var generate = function () {
+        var options = document.getElementById('tables').options;
+        table = "";
+        for (var i = 0; i < options.length; i++) {
+            console.log(options[i])
+            if (options[i].selected) {
+                table += options[i].text + ",";
+            }
+        }
+        // if (!table) {
+        //     showPopover($('#generatorBtn'), "请选择表")
+        //     return
+        // }
+        $("#msg").remove();
+        location.href = "code"
+            + "?htmlTemplate=generate4mysql"
+            + "&dbAddr=" + dbAddr
+            + "&dbUser=" + dbUser
+            + "&dbPassword=" + dbPassword
+            + "&projectName=" + $("#projectName").val()
+            + "&dbName=" + $("#databases option:selected").text()
+            + "&jsonFormat=" + $("#jsonFormat").val()
+            + "&tableName=" + table;
+    };
+    function back() {
+        location.href = "/"
+    }
+
+    function showPopover(target, msg) {
+        target.attr("data-original-title", msg);
+        target.tooltip();
+        target.tooltip('show');
+        target.focus();
+        //3秒后消失提示框
+        var id = setTimeout(
+            function () {
+                target.attr("data-original-title", "");
+                target.tooltip('hide');
+            }, 3000
+        );
+    }
+    $(document).ready(function () {
+        dbAddr = $("#dbAddr").val();
+        dbUser = $("#dbUser").val();
+        dbPassword = $("#dbPassword").val();
+        cm.get("/database", {
+            "dbAddr": dbAddr,
+            "dbUser": dbUser,
+            "dbPassword": dbPassword
+        }, function (data) {
+            data = data.data
+            console.log(data)
+            $('#databases').select2({
+                data: data
+            });
+            if (data.length > 0) {
+                getTables();
+            }
+        });
+        particlesJS('particles-js', {
+            "particles": {
+                "number": {
+                    "value": 80,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": "#1d80ef"
+                },
+                "shape": {
+                    "type": "circle",
+                    "stroke": {
+                        "width": 0,
+                        "color": "#000000"
+                    },
+                    "polygon": {
+                        "nb_sides": 3
+                    },
+                    "image": {
+                        "src": "img/github.svg",
+                        "width": 100,
+                        "height": 100
+                    }
+                },
+                "opacity": {
+                    "value": 0.5,
+                    "random": false,
+                    "anim": {
+                        "enable": false,
+                        "speed": 3,
+                        "opacity_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "size": {
+                    "value": 5,
+                    "random": true,
+                    "anim": {
+                        "enable": false,
+                        "speed": 80,
+                        "size_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 100,
+                    "color": "#46CAFB",
+                    "opacity": 0.3,
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 1,
+                    "direction": "none",
+                    "random": false,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false,
+                    "attract": {
+                        "enable": false,
+                        "rotateX": 120,
+                        "rotateY": 120
+                    }
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "repulse"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    },
+                    "resize": true
+                },
+                "modes": {
+                    "grab": {
+                        "distance": 800,
+                        "line_linked": {
+                            "opacity": 1
+                        }
+                    },
+                    "bubble": {
+                        "distance": 800,
+                        "size": 80,
+                        "duration": 2,
+                        "opacity": 0.8,
+                        "speed": 5
+                    },
+                    "repulse": {
+                        "distance": 200,
+                        "duration": 0.4
+                    },
+                    "push": {
+                        "particles_nb": 4
+                    },
+                    "remove": {
+                        "particles_nb": 2
+                    }
+                }
+            },
+            "retina_detect": true
+        });
+    });
+</script>
+</body>
+</html>
