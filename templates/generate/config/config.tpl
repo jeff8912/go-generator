@@ -1,7 +1,7 @@
 package config
 
 import (
-	"go-generator/common"
+	"{{.packagePrefix}}/common"
 	"log"
 	"path/filepath"
 
