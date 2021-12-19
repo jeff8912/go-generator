@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>代码生成</title>
+    <script src="https://cdn.bootcss.com/vue/2.6.10/vue.min.js"></script>
+    <script src="https://cdn.bootcss.com/element-ui/2.10.1/index.js"></script>
+    <script src="https://cdn.bootcss.com/axios/0.21.1/axios.min.js"></script>
+    <link href="https://cdn.bootcss.com/element-ui/2.10.1/theme-chalk/index.css" rel="stylesheet">
+    <style>
+        #app {
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <el-form ref="form" :model="form" :rules="rules" label-width="120px" class="demo-ruleForm">
+        <el-form-item label="项目名称" prop="projectName">
+            <el-input v-model="form.projectName" placeholder="支持多层级（用/分隔），例：go/generator，不填则以数据库名作为项目名"></el-input>
+        </el-form-item>
+        <el-form-item label="数据模型">
+            <el-select v-model="form.dataSource" placeholder="请选择" @change="changeDataSource()">
+                <el-option label="从mysql获取" value="1"></el-option>
+                <el-option label="不使用数据库" value="2"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="数据库地址" prop="dbAddr">
+            <el-input v-model="form.dbAddr"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="用户名" prop="username">
+            <el-input v-model="form.username"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="密码" prop="password">
+            <el-input v-model="form.password"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="">
+            <el-button type="primary" @click="confirmDbConfig()">确认数据库配置</el-button>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="数据库" prop="dbName">
+            <el-select v-model="form.dbName" placeholder="请选择" @change="changeTables()">
+                <el-option v-for="item in databases" :label="item.name" :key="item" :value="item.name"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item v-if="form.dataSource == 1" label="数据库表">
+            <el-select v-model="form.tableNames" multiple filterable placeholder="请选择">
+                <el-option v-for="item in tables" :label="item.name" :key="item" :value="item.name"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="primary" @click="codeGenerate" :disabled="codeGenerateDisable">代码生成</el-button>
+        </el-form-item>
+    </el-form>
+</div>
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            let checkProjectName = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('项目名不能为空'));
+                }
+                callback()
+            }
+            let checkDbAddr = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('数据库地址不能为空'));
+                }
+                callback()
+            }
+            let checkUsername = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('用户名不能为空'));
+                }
+                callback()
+            }
+            let checkPassword = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('密码不能为空'));
+                }
+                callback()
+            }
+            let checkDbName = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('数据库不能为空'));
+                }
+                callback()
+            }
+
+            return {
+                form: {
+                    isUseDb: 1,
+                    projectName: '',
+                    dataSource: '1',
+                    dbAddr: '127.0.0.1:3306',
+                    username: 'root',
+                    password: 'root',
+                    dbName: '',
+                    tableNames: [],
+                },
+                codeGenerateDisable: false,
+                confirm: {
+                    dbAddr: '',
+                    username: '',
+                    password: '',
+                },
+                databases: [],
+                tables: [],
+                rules: {
+                    projectName: [{validator: checkProjectName}],
+                    dbAddr: [{validator: checkDbAddr}],
+                    username: [{validator: checkUsername}],
+                    password: [{validator: checkPassword}],
+                    dbName: [{validator: checkDbName}],
+                }
+            }
+        },
+        methods: {
+            changeDataSource() {
+            },
+            confirmDbConfig() {
+                let dbArr = ['dbAddr', 'username', 'password']
+                var i = 0
+                let that = this
+                that.form.dbName = ''
+                this.$refs['form'].validateField(dbArr, errMsg => {
+                    if (errMsg) {
+                        return false;
+                    } else {
+                        if (++i == dbArr.length) {
+                            axios.post('/databases',
+                                {
+                                    dbAddr: that.form.dbAddr,
+                                    username: that.form.username,
+                                    password: that.form.password,
+                                }
+                            ).then(function (res) {
+                                if (res.data.code === 0) {
+                                    that.databases = res.data.data
+                                    that.confirm.dbAddr = that.form.dbAddr
+                                    that.confirm.username = that.form.username
+                                    that.confirm.password = that.form.password
+                                } else {
+                                    that.$message.error(res.data.msg)
+                                }
+                            }).catch((error) => {
+                                that.$message.error(error)
+                            })
+                        }
+                    }
+                })
+            },
+            changeTables() {
+                let that = this
+                axios.post('/tables',
+                    {
+                        dbAddr: that.form.dbAddr,
+                        username: that.form.username,
+                        password: that.form.password,
+                        dbName: that.form.dbName,
+                    }
+                ).then(function (res) {
+                    if (res.data.code === 0) {
+                        that.tables = res.data.data
+                    } else {
+                        that.$message.error(res.data.msg)
+                    }
+                }).catch((error) => {
+                    that.$message.error(error)
+                })
+            },
+            codeGenerate() {
+                let that = this
+                canSubmit = false
+                if (that.form.dataSource === '2') {
+                    this.$refs['form'].validateField(['projectName'], errMsg => {
+                        if (!errMsg) {
+                            canSubmit = true;
+                        }
+                    })
+                } else if (that.form.dataSource === '1') {
+                    if (!that.confirm.dbAddr) {
+                        that.$message.error("请先确认数据库配置")
+                        return
+                    }
+                    let dbArr = ['projectName', 'dbName']
+                    var i = 0
+                    this.$refs['form'].validateField(dbArr, errMsg => {
+                        if (!errMsg && ++i == dbArr.length) {
+                            canSubmit = true;
+                        }
+                    })
+                }
+
+                if (!canSubmit) {
+                    return
+                }
+                that.codeGenerateDisable = true
+                axios({
+                    method: 'post',
+                    url: '/generate',
+                    data: {
+                        projectName: that.form.projectName,
+                        dataSource: parseInt(that.form.dataSource),
+                        dbAddr: that.form.dbAddr,
+                        username: that.form.username,
+                        password: that.form.password,
+                        dbName: that.form.dbName,
+                        tableNames: that.form.tableNames
+                    },
+                    responseType: 'blob'
+                }).then(res => {
+                    that.codeGenerateDisable = false
+                    // 兼容blob下载出错json提示
+                    if (res.data && res.data instanceof Blob && res.data.type && res.data.type.toLowerCase().indexOf('json') != -1) {
+                        that.$message.error('生成失败')
+                    } else {
+                        let zipName = that.form.projectName.split('/')[0]
+                        let data = res.data // 这里后端对文件流做了一层封装，将data指向res.data即可
+                        if (!data) {
+                            return
+                        }
+                        let url = window.URL.createObjectURL(new Blob([data]))
+                        let a = document.createElement('a')
+                        a.style.display = 'none'
+                        a.href = url
+                        a.setAttribute('download', zipName + '.zip')
+                        document.body.appendChild(a)
+                        a.click() //执行下载
+                        window.URL.revokeObjectURL(a.href) //释放url
+                        document.body.removeChild(a) //释放标签
+                    }
+                }).catch((error) => {
+                    that.codeGenerateDisable = false
+                    that.$message.error(error)
+                })
+            }
+        }
+    })
+</script>
+
+</body>
+</html>

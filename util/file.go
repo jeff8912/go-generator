@@ -2,6 +2,7 @@ package util
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -86,4 +87,79 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func GetAllFile(pathname string) (files []string, err error) {
+	err = filepath.Walk(pathname, func(path string, info os.FileInfo, err error) error {
+		files = append(files, path)
+		return nil
+	})
+	return
+}
+
+func CreateFileIfAbsent(fileName string) (f *os.File, err error) {
+
+	filePath := fileName[:strings.LastIndex(fileName, "/")]
+
+	err = os.MkdirAll(filePath, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := PathExists(fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		f, err = os.Open(fileName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		f, err = os.Create(fileName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return f, nil
+}
+
+func CreateZip(zipPath, zipFile string) ([]byte, error) {
+	zipPaths := strings.Split(zipPath, "/")
+	err := Zip(zipFile, zipPaths[0])
+	if err != nil {
+		return nil, fmt.Errorf("压缩zip包失败,error=%s", err.Error())
+	}
+	zip, err := os.Open(zipFile)
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo, err := zip.Stat()
+	if err != nil {
+		return nil, err
+	}
+	buffer := make([]byte, fileInfo.Size())
+	_, err = zip.Read(buffer)
+	if err != nil {
+		return nil, err
+	}
+	defer zip.Close()
+	return buffer, nil
+}
+
+func RemovePath(zipPath, zipFile string) error {
+	zipPaths := strings.Split(zipPath, "/")
+	err := os.RemoveAll(zipPaths[0])
+	if err != nil {
+		return fmt.Errorf("删除文件夹失败,error=%s", err.Error())
+	}
+	if zipFile != "" {
+		err = os.Remove(zipFile)
+		if err != nil {
+			return fmt.Errorf("删除zip包失败,error=%s", err.Error())
+		}
+	}
+	return nil
 }

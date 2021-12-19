@@ -1,7 +1,6 @@
 package control
 
 import (
-	"go-generator/handler"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,8 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"go-generator/config"
-	"go-generator/log"
+	"{{.packagePrefix}}/config"
+	"{{.packagePrefix}}/handler"
+    "{{.packagePrefix}}/log"
 
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
@@ -50,7 +50,6 @@ func init() {
 
 func MainControl() {
 	e := echo.New()
-	e.File("/", "public/index.html")
 
 	e.Logger.SetLevel(echoLog.WARN)
 	e.HTTPErrorHandler = HTTPErrorHandler
@@ -102,7 +101,7 @@ func startServer(e *echo.Echo, address string) {
 	// a timeout of 10 seconds.
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
-	<-quit
+	{{ .lt }}-quit
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

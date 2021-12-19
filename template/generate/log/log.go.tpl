@@ -2,7 +2,7 @@ package log
 
 import (
 	"bytes"
-	"go-generator/config"
+	"{{.packagePrefix}}/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"go-generator/banner"
-	"go-generator/control"
-	"go-generator/log"
+    "{{.packagePrefix}}/banner"
+    "{{.packagePrefix}}/control"
+    "{{.packagePrefix}}/log"
 )
 
 var (
